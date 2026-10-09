@@ -21,5 +21,6 @@
         }
       }
     }
-  }
+  },
+  "defaultProject": "qa-personal-agent"
 }
