@@ -1,7 +1,7 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ChatMessage, Settings, CaseBundle, BugDraft } from './desktop-api';
+import { ChatMessage, Settings, CaseBundle, BugDraft, BrowserPlan, BrowserResult } from './desktop-api';
 @Component({
 	selector: 'qa-root',
 	standalone: true,
@@ -52,8 +52,28 @@ import { ChatMessage, Settings, CaseBundle, BugDraft } from './desktop-api';
           <button (click)="generate()" [disabled]="busy()">Generate cases</button>
           <button *ngIf="bundle()" (click)="attach()" [disabled]="busy()">Review & attach cases to Jira</button>
           <button (click)="bugOpen.set(!bugOpen())">Bug draft</button>
+          <button (click)="browserOpen.set(!browserOpen())">Browser test</button>
         </div>
         <div *ngIf="bundle()" style="margin-top:8px;max-height:130px;overflow:auto;white-space:pre-wrap;font-size:12px">{{bundle()?.markdown}}</div>
+        <div *ngIf="browserOpen()" style="display:grid;gap:8px;margin:12px 0">
+          <select [(ngModel)]="browserPlan.environment"><option value="">Select environment</option><option *ngFor="let e of settings.environments" [value]="e.name">{{e.name}}</option></select>
+          <input [(ngModel)]="browserPlan.path" placeholder="Relative path /login" aria-label="Browser path"/>
+          <input [(ngModel)]="browserPlan.expectedText" placeholder="Expected visible text" aria-label="Expected visible text"/>
+          <input [(ngModel)]="browserPlan.expectedTitle" placeholder="Expected page title (optional)"/>
+          <label><input type="checkbox" [(ngModel)]="useLogin"/> Use saved environment password (non-PROD only)</label>
+          <div *ngIf="useLogin" style="display:grid;gap:6px">
+            <input [(ngModel)]="loginUsername" placeholder="Login username"/>
+            <input [(ngModel)]="loginUserSelector" placeholder="Username CSS selector"/>
+            <input [(ngModel)]="loginPassSelector" placeholder="Password CSS selector"/>
+            <input [(ngModel)]="loginSubmitSelector" placeholder="Submit button CSS selector"/>
+            <input [(ngModel)]="envPassword" type="password" placeholder="Save password to OS vault"/>
+            <button (click)="saveEnvPassword()" [disabled]="!envPassword">Save environment password</button>
+          </div>
+          <button (click)="runBrowser()" [disabled]="busy()">Review & run browser assertion</button>
+          <p *ngIf="lastRun()">Run {{lastRun()?.status}} — ID {{lastRun()?.runId}} — {{lastRun()?.error || lastRun()?.checked?.join(', ')}}</p>
+          <input [(ngModel)]="evidenceBugKey" placeholder="Existing Jira bug key for failed-run evidence"/>
+          <button (click)="uploadEvidence()" [disabled]="busy() || lastRun()?.status!=='failed'">Review & attach failure screenshot to bug</button>
+        </div>
         <div *ngIf="bugOpen()" style="display:grid;gap:8px;margin-top:10px">
           <input [(ngModel)]="bug.summary" placeholder="Bug summary" aria-label="Bug summary"/>
           <textarea [(ngModel)]="bug.steps" rows="2" placeholder="Reproduction steps"></textarea>
@@ -174,6 +194,12 @@ import { ChatMessage, Settings, CaseBundle, BugDraft } from './desktop-api';
 	</div>`,
 })
 export class AppComponent implements OnInit {
+  browserOpen=signal(false);lastRun=signal<BrowserResult|null>(null);
+  browserPlan:BrowserPlan={storyKey:'',environment:'',path:'/',expectedText:''};
+  useLogin=false;loginUsername='';loginUserSelector='input[name="username"]';loginPassSelector='input[type="password"]';loginSubmitSelector='button[type="submit"]';envPassword='';evidenceBugKey='';
+  async saveEnvPassword(){try{const name=this.browserPlan.environment;if(!/^[A-Z][A-Z0-9_]{0,39}$/.test(name))throw new Error('Select environment');if(!this.settings.environments.some(e=>e.name===name&&!e.production))throw new Error('Select non-production environment');await window.qa.saveSecret('env-'+name+'-password',this.envPassword);this.envPassword='';this.show('Password stored in OS vault')}catch(e){this.show(String(e))}}
+  async runBrowser(){if(this.busy())return;this.busy.set(true);try{const plan:BrowserPlan={...this.browserPlan,storyKey:this.storyKey.trim().toUpperCase(),login:this.useLogin?{username:this.loginUsername,usernameSelector:this.loginUserSelector,passwordSelector:this.loginPassSelector,submitSelector:this.loginSubmitSelector}:undefined};const valid=await window.qa.previewBrowserPlan(plan);if(!confirm('Run '+valid.environment+' browser assertion at '+valid.path+'?'))return;const r=await window.qa.executeBrowserPlan(valid);this.lastRun.set(r);this.show('Browser test '+r.status+(r.error?': '+r.error:''))}catch(e){this.show(String(e))}finally{this.busy.set(false)}}
+  async uploadEvidence(){const r=this.lastRun();if(!r||r.status!=='failed')return;if(!confirm('Upload the captured screenshot to Jira bug '+this.evidenceBugKey+' and link it with '+r.storyKey+'? Screenshots may contain sensitive information.'))return;this.busy.set(true);try{const x=await window.qa.attachBugEvidence(this.evidenceBugKey.trim().toUpperCase(),r.storyKey,r.runId,true);this.show('Evidence attached to '+x.bugKey+(x.linked?' and story linked':' (story link failed; review Jira permissions)'))}catch(e){this.show(String(e))}finally{this.busy.set(false)}}
   storyKey='';bundle=signal<CaseBundle|null>(null);bugOpen=signal(false);
   bug:BugDraft={storyKey:'',summary:'',steps:'',expected:'',actual:'',environment:''};
   async generate(){if(this.busy())return;this.busy.set(true);try{this.bundle.set(await window.qa.generateCases(this.storyKey.trim().toUpperCase()));this.show('Test cases generated locally. Review before attachment.')}catch(e){this.show(String(e))}finally{this.busy.set(false)}}

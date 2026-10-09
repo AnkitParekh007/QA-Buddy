@@ -16,7 +16,13 @@ export interface Settings {
 }
 export interface CaseBundle {key:string;storySummary:string;markdown:string;artifactPath:string;createdAt:string}
 export interface BugDraft {storyKey:string;summary:string;steps:string;expected:string;actual:string;environment:string;evidencePath?:string}
+export interface BrowserPlan {environment:string;storyKey:string;path:string;expectedText?:string;expectedTitle?:string;login?:{username:string;usernameSelector:string;passwordSelector:string;submitSelector:string}}
+export interface BrowserResult {runId:string;environment:string;storyKey:string;status:'passed'|'failed';checked:string[];error?:string;screenshot:string;trace:string;startedAt:string;finishedAt:string}
 export interface QAApi {
+ previewBrowserPlan(plan:BrowserPlan):Promise<BrowserPlan>;
+ executeBrowserPlan(plan:BrowserPlan):Promise<BrowserResult>;
+ browserRuns():Promise<BrowserResult[]>;
+ attachBugEvidence(bugKey:string,storyKey:string,runId:string,approved:boolean):Promise<{bugKey:string;attachmentId:string;linked:boolean}>;
   generateCases(key:string):Promise<CaseBundle>;
   attachCases(key:string,artifactPath:string,approved:boolean):Promise<{key:string;filename:string;attachmentId:string}>;
   previewBug(draft:BugDraft):Promise<BugDraft>;
