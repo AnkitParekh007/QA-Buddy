@@ -3,6 +3,7 @@ import path from 'node:path';
 import { browserSmoke, readStory, askModel } from './services';
 import { history, saveHistory, saveSecret, saveSettings, settings, Settings } from './store';
 import { validateHttpsUrl } from './policy';
+import { generateCases, attachCases, submitBug, validateBugDraft } from './qa-workflow';
 function createWindow(){
  const win=new BrowserWindow({width:1260,height:850,minWidth:850,minHeight:570,backgroundColor:'#0c1020',webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true}});
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
@@ -19,6 +20,10 @@ app.whenReady().then(()=>{
  ipcMain.handle('history:get',event=>{fromWindow(event);return history()});
  ipcMain.handle('story:read',(event,key:string)=>{fromWindow(event);return readStory(key)});
  ipcMain.handle('browser:smoke',(event,name:string)=>{fromWindow(event);return browserSmoke(name)});
+ ipcMain.handle('cases:generate',(event,key:string)=>{fromWindow(event);return generateCases(key)});
+ ipcMain.handle('cases:attach',(event,key:string,artifactPath:string,approved:boolean)=>{fromWindow(event);if(approved!==true)throw new Error('Explicit approval required');return attachCases(key,artifactPath)});
+ ipcMain.handle('bug:preview',(event,draft:unknown)=>{fromWindow(event);return validateBugDraft(draft as any)});
+ ipcMain.handle('bug:submit',(event,draft:unknown,approved:boolean)=>{fromWindow(event);if(approved!==true)throw new Error('Explicit approval required');return submitBug(draft as any)});
  ipcMain.handle('chat:send',async(event,input:string)=>{fromWindow(event);if(typeof input!=='string'||!input.trim()||input.length>8000)throw new Error('Invalid message');
   const messages=history();messages.push({role:'user' as const,content:input,time:new Date().toISOString()});saveHistory(messages);
   try{const match=input.match(/\b[A-Z][A-Z0-9_]{1,19}-[1-9]\d{0,9}\b/);const story=match?await readStory(match[0]):undefined;const reply=await askModel(input,story);messages.push({role:'assistant' as const,content:reply,time:new Date().toISOString()});saveHistory(messages);return{reply,messages}}catch(err){throw new Error(err instanceof Error?err.message:'Agent request failed')}

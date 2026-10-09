@@ -1,7 +1,7 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ChatMessage, Settings } from './desktop-api';
+import { ChatMessage, Settings, CaseBundle, BugDraft } from './desktop-api';
 @Component({
 	selector: 'qa-root',
 	standalone: true,
@@ -45,6 +45,25 @@ import { ChatMessage, Settings } from './desktop-api';
 				</div>
 				<span class="status">● Local session</span>
 			</header>
+      <section style="padding:12px 22px;border-bottom:1px solid #273047">
+        <b>QA workflow</b>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <input [(ngModel)]="storyKey" placeholder="Jira story (e.g. QA-123)" aria-label="Jira story key" style="min-width:185px;padding:10px;border-radius:8px"/>
+          <button (click)="generate()" [disabled]="busy()">Generate cases</button>
+          <button *ngIf="bundle()" (click)="attach()" [disabled]="busy()">Review & attach cases to Jira</button>
+          <button (click)="bugOpen.set(!bugOpen())">Bug draft</button>
+        </div>
+        <div *ngIf="bundle()" style="margin-top:8px;max-height:130px;overflow:auto;white-space:pre-wrap;font-size:12px">{{bundle()?.markdown}}</div>
+        <div *ngIf="bugOpen()" style="display:grid;gap:8px;margin-top:10px">
+          <input [(ngModel)]="bug.summary" placeholder="Bug summary" aria-label="Bug summary"/>
+          <textarea [(ngModel)]="bug.steps" rows="2" placeholder="Reproduction steps"></textarea>
+          <textarea [(ngModel)]="bug.expected" rows="2" placeholder="Expected"></textarea>
+          <textarea [(ngModel)]="bug.actual" rows="2" placeholder="Actual"></textarea>
+          <select [(ngModel)]="bug.environment"><option value="">Select environment</option><option *ngFor="let e of settings.environments" [value]="e.name">{{e.name}}</option></select>
+          <button (click)="createBug()" [disabled]="busy()">Review & submit Jira bug</button>
+        </div>
+      </section>
+
 			<div class="messages">
 				<div *ngIf="messages().length === 0" class="welcome">
 					<h2>What would you like to test?</h2>
@@ -155,6 +174,11 @@ import { ChatMessage, Settings } from './desktop-api';
 	</div>`,
 })
 export class AppComponent implements OnInit {
+  storyKey='';bundle=signal<CaseBundle|null>(null);bugOpen=signal(false);
+  bug:BugDraft={storyKey:'',summary:'',steps:'',expected:'',actual:'',environment:''};
+  async generate(){if(this.busy())return;this.busy.set(true);try{this.bundle.set(await window.qa.generateCases(this.storyKey.trim().toUpperCase()));this.show('Test cases generated locally. Review before attachment.')}catch(e){this.show(String(e))}finally{this.busy.set(false)}}
+  async attach(){const b=this.bundle();if(!b)return;if(!confirm('Attach reviewed test cases to Jira '+b.key+'?'))return;this.busy.set(true);try{const r=await window.qa.attachCases(b.key,b.artifactPath,true);this.show('Attached '+r.filename+' to '+r.key)}catch(e){this.show(String(e))}finally{this.busy.set(false)}}
+  async createBug(){if(this.busy())return;this.busy.set(true);try{const draft=await window.qa.previewBug({...this.bug,storyKey:this.storyKey.trim().toUpperCase()});const text=['Create Jira bug in '+draft.storyKey.split('-')[0]+'?',draft.summary,'Steps: '+draft.steps,'Expected: '+draft.expected,'Actual: '+draft.actual,'Environment: '+draft.environment].join('\n\n');if(!confirm(text))return;const created=await window.qa.submitBug(draft,true);this.show('Created '+created.key+' at '+created.url)}catch(e){this.show(String(e))}finally{this.busy.set(false)}}
 	tab = signal<'chat' | 'config'>('chat');
 	messages = signal<ChatMessage[]>([]);
 	busy = signal(false);
