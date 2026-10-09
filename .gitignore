@@ -1,0 +1,12 @@
+node_modules/
+dist/
+release/
+.angular/
+.env
+.env.*
+*.log
+*.sqlite
+*.sqlite-*
+qa-workspace/
+playwright-report/
+test-results/

@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.json","compilerOptions":{"outDir":"./dist/ui-ts","types":[]},"files":["src/main.ts"],"include":["src/**/*.d.ts"]}
