@@ -8,5 +8,9 @@ contextBridge.exposeInMainWorld('qa',Object.freeze({
  attachCases:(key:string,p:string,approved:boolean)=>invoke('cases:attach',key,p,approved),
  previewBug:(draft:unknown)=>invoke('bug:preview',draft),
  submitBug:(draft:unknown,approved:boolean)=>invoke('bug:submit',draft,approved),
+ previewBrowserPlan:(plan:unknown)=>invoke('browser:plan',plan),
+ executeBrowserPlan:(plan:unknown)=>invoke('browser:execute',plan),
+ browserRuns:()=>invoke('browser:runs'),
+ attachBugEvidence:(bugKey:string,storyKey:string,runId:string,approved:boolean)=>invoke('bug:evidence',bugKey,storyKey,runId,approved),
  readStory:(key:string)=>invoke('story:read',key),smoke:(name:string)=>invoke('browser:smoke',name)
 }));
