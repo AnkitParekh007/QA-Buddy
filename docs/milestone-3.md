@@ -1,0 +1,12 @@
+# Milestone 3 — Authenticated browser evidence (pilot)
+- Saved per-environment password encrypted with Electron safeStorage (non-production only).
+- Deterministic Playwright navigation and title/text assertions, with optional username/password login.
+- Same-origin-only network routing for pilot; production requests are GET/HEAD/OPTIONS only and scripted login is forbidden.
+- Run metadata and screenshot/trace artifacts stored locally. **Traces and screenshots can contain sensitive data.**
+- User-reviewed screenshot attachment to an existing Jira bug and attempted 'Relates' issue link.
+- Failed runs must not be interpreted as successful tests. A missing/empty screenshot blocks evidence upload.
+- No arbitrary shell, free-form model-generated JavaScript or unapproved browser mutation.
+- Login can change server state. Only use configured disposable QA accounts and non-production environments.
+- LIMITATIONS: cross-origin SSO, redirect-based login, advanced multi-step testing, live manual takeover, video, cloud sync, and robust screenshot redaction are out of scope.
+- SECURITY REVIEW REQUIRED: IPC authorization remains based on trusted Electron renderer; untrusted web content must never be loaded into it. Assess screenshot/trace retention before production use.
+- Required validation: npm ci, npm run build, npm test, Playwright chromium install; sandbox Jira evidence/upload flow.

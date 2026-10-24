@@ -13,7 +13,7 @@ function jiraAuth():{base:string;header:string} {
  const base=validateHttpsUrl(s.jiraBaseUrl);
  return {base,header:'Basic '+Buffer.from(s.jiraEmail+':'+getSecret('jira-api-token')).toString('base64')};
 }
-async function jiraRequest(pathname:string, init:RequestInit):Promise<Response> {
+export async function jiraRequest(pathname:string, init:RequestInit):Promise<Response> {
  const {base,header}=jiraAuth();
  const response=await fetch(base+pathname,{...init,headers:{Authorization:header,Accept:'application/json',...init.headers},signal:AbortSignal.timeout(25000),redirect:'error'});
  if(!response.ok) throw new Error('Jira request failed: HTTP '+response.status);
@@ -67,4 +67,28 @@ export async function submitBug(raw:BugDraft):Promise<{key:string;url:string}>{
  const {base}=jiraAuth();
  // Evidence upload and issue-link creation are separate, explicit follow-ups; never claim they happened here.
  return {key:data.key,url:base+'/browse/'+encodeURIComponent(data.key)};
+}
+
+export async function attachBugEvidence(bugKey:string,storyKey:string,runId:string):Promise<{bugKey:string;attachmentId:string;linked:boolean}>{
+ validateStoryKey(bugKey);validateStoryKey(storyKey);
+ if(!/^[0-9a-f-]{36}$/.test(runId))throw new Error('Invalid run ID');
+ const root=path.resolve(artifactDir(),'runs',runId);
+ const resultFile=path.join(root,'result.json');
+ const result=JSON.parse(fs.readFileSync(resultFile,'utf8')) as {runId:string;storyKey:string;screenshot:string;status:string};
+ if(result.runId!==runId||result.storyKey!==storyKey||result.status!=='failed')throw new Error('Evidence does not match a failed run and requested story');
+ const screenshot=path.join(root,'evidence.png');
+ if(path.resolve(result.screenshot)!==path.resolve(screenshot))throw new Error('Evidence path mismatch');
+ const stat=fs.statSync(screenshot);if(!stat.isFile()||stat.size===0||stat.size>5*1024*1024)throw new Error('Screenshot missing or too large');
+ const form=new FormData();
+ form.append('file',new Blob([fs.readFileSync(screenshot)],{type:'image/png'}),'qa-evidence-'+runId+'.png');
+ const response=await jiraRequest('/rest/api/3/issue/'+encodeURIComponent(bugKey)+'/attachments',{method:'POST',headers:{'X-Atlassian-Token':'no-check'},body:form});
+ const attachments=await response.json() as Array<{id:string}>;
+ if(!attachments[0]?.id)throw new Error('Jira did not confirm the attachment');
+ // Linking failure remains visible as a partial result, not a false success.
+ let linked=false;
+ try{
+  await jiraRequest('/rest/api/3/issueLink',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:{name:'Relates'},inwardIssue:{key:bugKey},outwardIssue:{key:storyKey}})});
+  linked=true;
+ }catch{}
+ return {bugKey,attachmentId:attachments[0].id,linked};
 }
