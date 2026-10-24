@@ -14,7 +14,7 @@
 		"package:win": "npm run build && electron-builder --win nsis"
 	},
 	"dependencies": {
-		"@angular/common": "^21.0.0",
+		"@angular/common": "^22.2.3",
 		"@angular/compiler": "^21.0.0",
 		"@angular/core": "^21.0.0",
 		"@angular/forms": "^21.0.0",
