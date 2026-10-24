@@ -58,3 +58,17 @@ Electron is a native UI: run the application on a local desktop with graphics su
 6. Replace JSON history with encrypted SQLite, add Windows code signing, signed updates and integration tests.
 
 See `docs/roadmap.md` for day-by-day milestones.
+
+## Recruiter verification checklist
+
+This repository is an **experimental implementation starter**, not a production QA automation platform. Before treating a feature as verified, reviewers should check:
+
+- [ ] `npm install` succeeds on a supported Windows/Node environment.
+- [ ] `npm test` passes with the exact commit and test summary recorded.
+- [ ] Electron app launches and the isolated preload boundary is inspected.
+- [ ] Jira read-only access is exercised against a permitted test project.
+- [ ] Playwright smoke test runs against a non-production test target.
+- [ ] Dependency, secret, and tracked-file scans are completed; no real credentials are committed.
+- [ ] Sensitive data handling, redaction, storage and retention controls are validated before customer use.
+
+**Evidence status:** These checks are not asserted as passing here. Capture command outputs, date, environment and commit SHA when verified. The Jira write, regression, and release-sanity workflows described in the roadmap remain future work unless separately demonstrated.
