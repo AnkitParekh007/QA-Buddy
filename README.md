@@ -1,4 +1,19 @@
-# QA Personal Agent — implementation starter (v0.1)
+# QA-Buddy — Local-first QA Engineering Agent
+
+**Electron + Angular · Jira Cloud · Playwright · Anthropic Messages API · OS-encrypted secrets**
+
+> **Engineering proof:** A local Windows QA assistant that reads Jira stories, proposes test cases, launches browser checks, and captures evidence while keeping high-risk actions human-controlled.
+
+**[Explore source](https://github.com/AnkitParekh007/QA-Buddy)** · **[Inspect tests](https://github.com/AnkitParekh007/QA-Buddy/tree/main/tests)** · **[Implementation notes](https://github.com/AnkitParekh007/QA-Buddy/tree/main/docs)**
+
+## Architecture choices worth reviewing
+
+- **OS-native secret protection:** Electron `safeStorage` is used rather than checking provider credentials into source control.
+- **Desktop privilege boundary:** Isolated preload/IPC contracts separate the renderer from privileged APIs.
+- **Test evidence:** Playwright browser sessions record screenshots; a proposed test is not presented as an observed result.
+- **Explicit maturity:** This is a starter/prototype, not a deployed autonomous QA product. Current tests and external connector behavior require independent verification.
+
+
 
 Independent local-first Windows QA assistant, **not** a deployed product or production-ready autonomous agent.
 
